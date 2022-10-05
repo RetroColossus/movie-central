@@ -84,3 +84,13 @@ test('UPDATE_MOVIE_PREFERENCES', () => {
             "externalMovieId": 7
         }]
     });
+
+    // check liked movies
+    expect(newState.likedMovies.length).toBe(1);
+    expect(newState.likedMovies[0].externalMovieId).toBe(6);
+    expect(initialState.likedMovies.length).toBe(1);
+    // check disliked movies
+    expect(newState.dislikedMovies.length).toBe(1);
+    expect(newState.dislikedMovies[0].externalMovieId).toBe(7);
+    expect(initialState.dislikedMovies.length).toBe(1);
+});
