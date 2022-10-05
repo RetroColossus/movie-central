@@ -30,3 +30,40 @@ const Homepage = () => {
     const [dislikeMovie] = useMutation(DISLIKE_MOVIE);
     const [likeMovie] = useMutation(LIKE_MOVIE);
     const { loading, data } = useQuery(GET_USER);
+
+    // hook for updating movie preferences
+    useEffect(() => {
+        // if we're online, use server to update movie preferences
+        if (!likedMovies.length && !dislikedMovies.length) {
+            if (data && data.me) {
+                dispatch({
+                    type: UPDATE_CURRENT_USER,
+                    userId: data.me._id
+                })
+                if (data.me.likedMovies.length || !data.me.dislikedMovies.length) {
+                    console.log("Online, using data from server to update movie preferences")
+                    dispatch({
+                        type: UPDATE_MOVIE_PREFERENCES,
+                        likedMovies: data.me.likedMovies,
+                        dislikedMovies: data.me.dislikedMovies
+                    });
+                }
+            }
+            // if we're offline, use idb to update movie preferences
+            else if (!loading) {
+                idbPromise('likedMovies', 'get').then(likedMovies => {
+                    idbPromise('dislikedMovies', 'get').then(dislikedMovies => {
+                        if (dislikedMovies.length || likedMovies.length) {
+                            console.log("Offline, using data from idb to update movie preferences")
+                            dispatch({
+                                type: UPDATE_MOVIE_PREFERENCES,
+                                likedMovies,
+                                dislikedMovies
+                            })
+                        }
+                    })
+                })
+            }
+        }
+    }, [data, loading, likedMovies, dislikedMovies, dispatch])
+    
