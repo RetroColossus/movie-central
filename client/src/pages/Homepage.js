@@ -66,7 +66,7 @@ const Homepage = () => {
             }
         }
     }, [data, loading, likedMovies, dislikedMovies, dispatch])
-    
+
     // hook for displaying a movie
     useEffect(() => {
         if (movies.length && movieIndex === '') { // show the next movie
@@ -147,153 +147,155 @@ const Homepage = () => {
         }
     }, [movies, data, dispatch, loading, addMovie, addMovieError])
 
+    const handleLikeMovie = (likedMovie) => {
+        // update the db
+        likeMovie({
+            variables: { movieId: likedMovie._id }
+        })
+        .then(({data}) => {
+            if (data) {
+                // update global state
+                dispatch({
+                    type: UPDATE_MOVIE_PREFERENCES,
+                    likedMovies: data.likeMovie.likedMovies,
+                    dislikedMovies: data.likeMovie.dislikedMovies
+                });
+    
+                // find the updated movie
+                const likedMovieIndex = findIndexByAttr(data.likeMovie.likedMovies, '_id', likedMovie._id);
+                const updatedLikedMovie = data.likeMovie.likedMovies[likedMovieIndex];
 
-const handleLikeMovie = (likedMovie) => {
-    // update the db
-    likeMovie({
-        variables: { movieId: likedMovie._id }
-    })
-    .then(({data}) => {
-        if (data) {
-            // update global state
-            dispatch({
-                type: UPDATE_MOVIE_PREFERENCES,
-                likedMovies: data.likeMovie.likedMovies,
-                dislikedMovies: data.likeMovie.dislikedMovies
-            });
+                // update idb
+                idbPromise('likedMovies', 'put', updatedLikedMovie);
+                idbPromise('dislikedMovies', 'delete', updatedLikedMovie);
 
-            // find the updated movie
-            const likedMovieIndex = findIndexByAttr(data.likeMovie.likedMovies, '_id', likedMovie._id);
-            const updatedLikedMovie = data.likeMovie.likedMovies[likedMovieIndex];
-
-            // update idb
-            idbPromise('likedMovies', 'put', updatedLikedMovie);
-            idbPromise('dislikedMovies', 'delete', updatedLikedMovie);
-
-            // skip to the next movie
-            handleNextMovie();
-        } else {
-            console.error("Couldn't like the movie!");
-        }
-    })
-    .catch(err => console.error(err));
-};
-
-const handleDislikeMovie = (dislikedMovie) => {
-    // update the db
-    dislikeMovie({
-        variables: { movieId: dislikedMovie._id }
-    })
-    .then(async ({data}) => {
-        if (data) {
-            // update global state
-            dispatch({
-                type: UPDATE_MOVIE_PREFERENCES,
-                likedMovies: data.dislikeMovie.likedMovies,
-                dislikedMovies: data.dislikeMovie.dislikedMovies
-            });
-
-            // find the updated movie
-            const dislikedMovieIndex = await findIndexByAttr(data.dislikeMovie.dislikedMovies, '_id', dislikedMovie._id);
-            const updatedDislikedMovie = data.dislikeMovie.dislikedMovies[dislikedMovieIndex];
-
-            // update idb
-            idbPromise('likedMovies', 'delete', updatedDislikedMovie);
-            idbPromise('dislikedMovies', 'put', updatedDislikedMovie);
-
-            // skip to the next movie
-            handleNextMovie();
-        } else {
-            console.error("Couldn't dislike the movie!");
-        }
-    })
-    .catch(err => console.error(err));
-};
-
-const handlePrevMovie = async () => {
-    setLastSwipe('')
-    if (movies.length) {
-        movieIndex === 0 ? setMovieIndex(movies.length - 1) : setMovieIndex(movieIndex - 1);
-    }
-}
-
-const handleNextMovie = async () => {
-    setLastSwipe('')
-    // put the current movie at the end of the array if it's not the only movie
-    if (movies.length) {
-        if (Auth.loggedIn()) {
-            for (let i=movieIndex + 1; i < movies.length; i++) {
-                const isLiked = likedMovies.some(likedMovie => likedMovie._id === movies[i]._id);
-                const isDisliked = dislikedMovies.some(dislikedMovie => dislikedMovie._id === movies[i]._id);
-
-                if (!isLiked && !isDisliked && movies[i].trailer) {
-                    setMovieIndex(i);
-                    return;
-                }
+                // skip to the next movie
+                handleNextMovie();
+            } else {
+                console.error("Couldn't like the movie!");
             }
-            setMoviesToDisplay(false);
-        } else {
-            movieIndex === movies.length ? setMovieIndex(0) : setMovieIndex(movieIndex + 1);
+        })
+        .catch(err => console.error(err));
+    };
+
+    const handleDislikeMovie = (dislikedMovie) => {
+        // update the db
+        dislikeMovie({
+            variables: { movieId: dislikedMovie._id }
+        })
+        .then(async ({data}) => {
+            if (data) {
+                // update global state
+                dispatch({
+                    type: UPDATE_MOVIE_PREFERENCES,
+                    likedMovies: data.dislikeMovie.likedMovies,
+                    dislikedMovies: data.dislikeMovie.dislikedMovies
+                });
+    
+                // find the updated movie
+                const dislikedMovieIndex = await findIndexByAttr(data.dislikeMovie.dislikedMovies, '_id', dislikedMovie._id);
+                const updatedDislikedMovie = data.dislikeMovie.dislikedMovies[dislikedMovieIndex];
+    
+                // update idb
+                idbPromise('likedMovies', 'delete', updatedDislikedMovie);
+                idbPromise('dislikedMovies', 'put', updatedDislikedMovie);
+
+                // skip to the next movie
+                handleNextMovie();
+            } else {
+                console.error("Couldn't dislike the movie!");
+            }
+        })
+        .catch(err => console.error(err));
+    };
+
+    const handlePrevMovie = async () => {
+        setLastSwipe('')
+        if (movies.length) {
+            movieIndex === 0 ? setMovieIndex(movies.length - 1) : setMovieIndex(movieIndex - 1);
         }
     }
-}
 
-const handleSwipe = (swipeDirection) => {
-    if (swipeDirection === direction.RIGHT) {
-        setLastSwipe('right');
-        if (Auth.loggedIn()) {
-            handleLikeMovie(movies[movieIndex]);
-        } else {
-            handlePrevMovie();
-        }
-    } else if (swipeDirection === direction.LEFT) {
-        setLastSwipe('left')
-        if (Auth.loggedIn()) {
-            handleDislikeMovie(movies[movieIndex]);
-        } else {
-            handleNextMovie();
+    const handleNextMovie = async () => {
+        setLastSwipe('')
+        // put the current movie at the end of the array if it's not the only movie
+        if (movies.length) {
+            if (Auth.loggedIn()) {
+                for (let i=movieIndex + 1; i < movies.length; i++) {
+                    const isLiked = likedMovies.some(likedMovie => likedMovie._id === movies[i]._id);
+                    const isDisliked = dislikedMovies.some(dislikedMovie => dislikedMovie._id === movies[i]._id);
+
+                    if (!isLiked && !isDisliked && movies[i].trailer) {
+                        setMovieIndex(i);
+                        return;
+                    }
+                }
+                setMoviesToDisplay(false);
+            } else {
+                movieIndex === movies.length ? setMovieIndex(0) : setMovieIndex(movieIndex + 1);
+            }
         }
     }
-}
 
-return(
-    <>
-        <Jumbotron fluid className="text-light bg-dark">
-            <Container>
+    const handleSwipe = (swipeDirection) => {
+        if (swipeDirection === direction.RIGHT) {
+            setLastSwipe('right');
+            if (Auth.loggedIn()) {
+                handleLikeMovie(movies[movieIndex]);
+            } else {
+                handlePrevMovie();
+            }
+        } else if (swipeDirection === direction.LEFT) {
+            setLastSwipe('left')
+            if (Auth.loggedIn()) {
+                handleDislikeMovie(movies[movieIndex]);
+            } else {
+                handleNextMovie();
+            }
+        }
+    }
+    
+    return(
+        <>
+            <Jumbotron fluid className="text-light bg-info">
+                <Container className="text-center">
+                <span><img src="movie96.png"></img></span>
                 <h1>Movie Central</h1>
-                {Auth.loggedIn()
-                    ? <h4>Swipe right to save a movie. Swipe left to pass.</h4>
-                    : <h4>Trending This Week</h4>
-                }
-            </Container>
-        </Jumbotron>
+                </Container>
+                <Container className="text-center">
+                    {Auth.loggedIn()
+                        ? <h4>Save Your Favorite Movies!</h4>
+                        : <h4>Trending This Week</h4>
+                    }
+                </Container>
+            </Jumbotron>
 
-        <Container>
-            {loading ? <h2>Loading....</h2> : null}
-            {moviesToDisplay
-            ?   <Swipeable
-                    onSwipe={handleSwipe}
-                    fadeThreshold={200}
-                    swipeThreshold={40}
-                    onAfterSwipe={() => console.log(`${movies[movieIndex].title} swiped`)}>
-                    <MovieCard
-                        movie={movies[movieIndex]}
-                        displayTrailer
-                        displaySkip
-                        likeMovieHandler={handleLikeMovie}
-                        dislikeMovieHandler={handleDislikeMovie}
-                        nextMovieHandler={handleNextMovie}
-                        prevMovieHandler={handlePrevMovie}
-                    />
-                </Swipeable>
-            :   <h3 className="text-center">No more movies to display!</h3>
-            }
-            <h4 className="text-center mt-3">
-                {lastSwipe ? `You swiped ${lastSwipe} on ${movies[movieIndex].title}!` : null}
-            </h4>
-        </Container>
-    </>
-);
+            <Container>
+                {loading ? <h2>Loading....</h2> : null}
+                {moviesToDisplay
+                ?   <Swipeable
+                        onSwipe={handleSwipe}
+                        fadeThreshold={200}
+                        swipeThreshold={40}
+                        onAfterSwipe={() => console.log(`${movies[movieIndex].title} swiped`)}>
+                        <MovieCard
+                            movie={movies[movieIndex]}
+                            displayTrailer
+                            displaySkip
+                            likeMovieHandler={handleLikeMovie}
+                            dislikeMovieHandler={handleDislikeMovie}
+                            nextMovieHandler={handleNextMovie}
+                            prevMovieHandler={handlePrevMovie}
+                        />
+                    </Swipeable>
+                :   <h3 className="text-center">No more movies to display!</h3>
+                }
+                <h4 className="text-center mt-3">
+                    {lastSwipe ? `You swiped ${lastSwipe} on ${movies[movieIndex].title}!` : null}
+                </h4>
+            </Container>
+        </>
+    );
 }
 
 export default Homepage;

@@ -1,174 +1,173 @@
-const { User, Movie } = require('../models')
-const { signToken } = require('../utils/auth')
-
-const { AuthenticationError } = require('apollo-server-express')
+const { User, Movie } = require('../models');
+const { signToken } = require('../utils/auth');
+const { AuthenticationError } = require('apollo-server-express');
 
 const resolvers = {
-  Query: {
-    me: async (parent, args, context) => {
-      if (context.user) {
-        const userData = await User.findOne({ _id: context.user._id })
-          .select('-__v -password')
-          .populate('dislikedMovies')
-          .populate({
-            path: 'likedMovies',
-            populate: {
-              path: 'likedUsers',
-            },
-          })
+    Query: {
+        me: async (parent, args, context) => {
+            if (context.user) {
+                const userData = await User.findOne({ _id: context.user._id })
+                    .select('-__v -password')
+                    .populate('dislikedMovies')
+                    .populate({
+                       path: 'likedMovies',
+                       populate: {
+                         path: 'likedUsers'
+                       }
+                    });;
+                
+                return userData;
+            }
 
-        return userData
-      }
+            throw new AuthenticationError('Not logged in');
+        },
 
-      throw new AuthenticationError('Not logged in')
+        // get all users
+        users: async () => {
+            return User.find().select('-__v -password');
+        },
+
+        // get a user by username
+        user: async (parent, { username }) => {
+            return User.findOne({ username })
+                .select('-__v -password')
+                .populate('dislikedMovies')
+                .populate({
+                   path: 'likedMovies',
+                   populate: {
+                     path: 'likedUsers'
+                   }
+                });
+        },
+
+        // get a movie by id
+        movie: async (parent, { movieId }) => {
+            return Movie.findOne({ _id: movieId })
+                .select('-__v')
+                .populate('dislikedUsers')
+                .populate('likedUsers');
+        },
+
+        // get all movies
+        movies: async () => {
+            return Movie.find()
+                .select('-__v')
+                .populate('dislikedUsers')
+                .populate('likedUsers');
+        }
     },
 
-    // get all users
-    users: async () => {
-      return User.find().select('-__v -password')
-    },
+    Mutation: {
+        addUser: async (parent, args) => {
+            const user = await User.create(args);
+            const token = signToken(user);
 
-    // get a user by username
-    user: async (parent, { username }) => {
-      return User.findOne({ username })
-        .select('-__v -password')
-        .populate('dislikedMovies')
-        .populate({
-          path: 'likedMovies',
-          populate: {
-            path: 'likedUsers',
-          },
-        })
-    },
+            return { token, user };
+        },
 
-    // get a movie by id
-    movie: async (parent, { movieId }) => {
-      return Movie.findOne({ _id: movieId })
-        .select('-__v')
-        .populate('dislikedUsers')
-        .populate('likedUsers')
-    },
+        login: async (parent, { email, password }) => {
+            const user = await User.findOne({ email });
 
-    // get all movies
-    movies: async () => {
-      return Movie.find()
-        .select('-__v')
-        .populate('dislikedUsers')
-        .populate('likedUsers')
-    },
-  },
+            if (!user) {
+                throw new AuthenticationError('Incorrect credentials');
+            }
 
-  Mutation: {
-    addUser: async (parent, args) => {
-      const user = await User.create(args)
-      const token = signToken(user)
+            const correctPw = await user.isCorrectPassword(password);
 
-      return { token, user }
-    },
+            if (!correctPw) {
+                throw new AuthenticationError('Incorrect credentials');
+            }
 
-    login: async (parent, { email, password }) => {
-      const user = await User.findOne({ email })
+            const token = signToken(user);
+            return { token, user };
+        },
 
-      if (!user) {
-        throw new AuthenticationError('Incorrect credentials')
-      }
+        addFriend: async (parent, { friendId }, context) => {
+            if (context.user) {
+                const updatedUser = await User.findByIdAndUpdate(
+                    { _id: context.user._id },
+                    { $addToSet: { friends: friendId } },
+                    { new: true }
+                ).populate('friends');
 
-      const correctPw = await user.isCorrectPassword(password)
+                return updatedUser;
+            }
 
-      if (!correctPw) {
-        throw new AuthenticationError('Incorrect credentials')
-      }
+            throw new AuthenticationError('You need to be logged in!');
+        },
 
-      const token = signToken(user)
-      return { token, user }
-    },
+        addMovie: async (parent, { input }) => {
+            const movie = await Movie.findOneAndUpdate(
+                { externalMovieId: input.externalMovieId },
+                input,
+                { upsert: true, new: true }
+            ).populate('likedUsers');
+            
+            return movie;
+        },
 
-    addFriend: async (parent, { friendId }, context) => {
-      if (context.user) {
-        const updatedUser = await User.findByIdAndUpdate(
-          { _id: context.user._id },
-          { $addToSet: { friends: friendId } },
-          { new: true },
-        ).populate('friends')
+        likeMovie: async (parent, { movieId }, context) => {
+            if (context.user) {
+                const updatedMovie = await Movie.findByIdAndUpdate(
+                    { _id: movieId },
+                    {
+                        $addToSet: { likedUsers: context.user._id },
+                        $pull: { dislikedUsers: context.user._id }
+                    }
+                )
 
-        return updatedUser
-      }
+                const updatedUser = await User.findByIdAndUpdate(
+                    { _id: context.user._id },
+                    {
+                        $addToSet: { likedMovies: updatedMovie._id },
+                        $pull: { dislikedMovies: updatedMovie._id }
+                    },
+                    { new: true }
+                )
+                .populate('dislikedMovies')
+                .populate({
+                   path: 'likedMovies',
+                   populate: {
+                     path: 'likedUsers'
+                   }
+                });
 
-      throw new AuthenticationError('You need to be logged in!')
-    },
+                return updatedUser;
+            }
+            throw new AuthenticationError('You need to be logged in!')
+        },
 
-    addMovie: async (parent, { input }) => {
-      const movie = await Movie.findOneAndUpdate(
-        { externalMovieId: input.externalMovieId },
-        input,
-        { upsert: true, new: true },
-      ).populate('likedUsers')
+        dislikeMovie: async (parent, { movieId }, context) => {
+            if (context.user) {
+                const updatedMovie = await Movie.findByIdAndUpdate(
+                    { _id: movieId },
+                    {
+                        $addToSet: { dislikedUsers: context.user._id },
+                        $pull: { likedUsers: context.user._id }
+                    }
+                )
 
-      return movie
-    },
+                const updatedUser = await User.findByIdAndUpdate(
+                    { _id: context.user._id },
+                    {
+                        $addToSet: { dislikedMovies: updatedMovie._id },
+                        $pull: { likedMovies: updatedMovie._id }
+                    },
+                    { new: true }
+                )
+                .populate('dislikedMovies')
+                .populate({
+                   path: 'likedMovies',
+                   populate: {
+                     path: 'likedUsers'
+                   }
+                });
 
-    likeMovie: async (parent, { movieId }, context) => {
-      if (context.user) {
-        const updatedMovie = await Movie.findByIdAndUpdate(
-          { _id: movieId },
-          {
-            $addToSet: { likedUsers: context.user._id },
-            $pull: { dislikedUsers: context.user._id },
-          },
-        )
+                return updatedUser;
+            }
+            throw new AuthenticationError('You need to be logged in!')
+        }
+    }
+};
 
-        const updatedUser = await User.findByIdAndUpdate(
-          { _id: context.user._id },
-          {
-            $addToSet: { likedMovies: updatedMovie._id },
-            $pull: { dislikedMovies: updatedMovie._id },
-          },
-          { new: true },
-        )
-          .populate('dislikedMovies')
-          .populate({
-            path: 'likedMovies',
-            populate: {
-              path: 'likedUsers',
-            },
-          })
-
-        return updatedUser
-      }
-      throw new AuthenticationError('You need to be logged in!')
-    },
-
-    dislikeMovie: async (parent, { movieId }, context) => {
-      if (context.user) {
-        const updatedMovie = await Movie.findByIdAndUpdate(
-          { _id: movieId },
-          {
-            $addToSet: { dislikedUsers: context.user._id },
-            $pull: { likedUsers: context.user._id },
-          },
-        )
-
-        const updatedUser = await User.findByIdAndUpdate(
-          { _id: context.user._id },
-          {
-            $addToSet: { dislikedMovies: updatedMovie._id },
-            $pull: { likedMovies: updatedMovie._id },
-          },
-          { new: true },
-        )
-          .populate('dislikedMovies')
-          .populate({
-            path: 'likedMovies',
-            populate: {
-              path: 'likedUsers',
-            },
-          })
-
-        return updatedUser
-      }
-      throw new AuthenticationError('You need to be logged in!')
-    },
-  },
-}
-
-module.exports = resolvers
+module.exports = resolvers;

@@ -13,6 +13,7 @@ import {
     MdKeyboardArrowUp
 } from "react-icons/md";
 
+
 // import utils
 import Auth from '../utils/auth';
 import { useMovieCentralContext } from "../utils/GlobalState";

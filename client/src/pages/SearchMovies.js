@@ -183,16 +183,16 @@ const SearchMovies = () => {
 
     return (
         <>
-            <Jumbotron fluid className="text-light bg-dark">
+            <Jumbotron fluid className="text-light bg-info">
                 <Container>
                     <Form onSubmit={(event) => handleFormSubmit(event, searchInput)}>
-                        <Form.Label className="h3">Find your favorite movies</Form.Label>
+                        <Form.Label className="h3">Search For Your Favorite Movies</Form.Label>
                         <Form.Control
                             name='searchInput'
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             type='text'
-                            placeholder='The Lord of the Rings'
+                            placeholder='Movie Search'
                         />
                         <Button type='submit' className="mt-2">Search</Button>
                     </Form>

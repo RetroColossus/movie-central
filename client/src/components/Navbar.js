@@ -12,8 +12,8 @@ const AppNavbar = () => {
     return (
         <>
             <Navbar collapseOnSelect expand="lg" bg="black" variant="dark">
-                <Navbar.Brand as={Link} to='/'>
-                    Movie Cental
+                <Navbar.Brand as={Link} to='/' >
+                    Movie Central - Your Movie App
                 </Navbar.Brand>
                 <Navbar.Toggle aria-controls='navbar' />
                 <Navbar.Collapse id='navbar'>
