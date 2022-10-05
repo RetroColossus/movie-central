@@ -146,3 +146,66 @@ const Homepage = () => {
             }
         }
     }, [movies, data, dispatch, loading, addMovie, addMovieError])
+
+
+const handleLikeMovie = (likedMovie) => {
+    // update the db
+    likeMovie({
+        variables: { movieId: likedMovie._id }
+    })
+    .then(({data}) => {
+        if (data) {
+            // update global state
+            dispatch({
+                type: UPDATE_MOVIE_PREFERENCES,
+                likedMovies: data.likeMovie.likedMovies,
+                dislikedMovies: data.likeMovie.dislikedMovies
+            });
+
+            // find the updated movie
+            const likedMovieIndex = findIndexByAttr(data.likeMovie.likedMovies, '_id', likedMovie._id);
+            const updatedLikedMovie = data.likeMovie.likedMovies[likedMovieIndex];
+
+            // update idb
+            idbPromise('likedMovies', 'put', updatedLikedMovie);
+            idbPromise('dislikedMovies', 'delete', updatedLikedMovie);
+
+            // skip to the next movie
+            handleNextMovie();
+        } else {
+            console.error("Couldn't like the movie!");
+        }
+    })
+    .catch(err => console.error(err));
+};
+
+const handleDislikeMovie = (dislikedMovie) => {
+    // update the db
+    dislikeMovie({
+        variables: { movieId: dislikedMovie._id }
+    })
+    .then(async ({data}) => {
+        if (data) {
+            // update global state
+            dispatch({
+                type: UPDATE_MOVIE_PREFERENCES,
+                likedMovies: data.dislikeMovie.likedMovies,
+                dislikedMovies: data.dislikeMovie.dislikedMovies
+            });
+
+            // find the updated movie
+            const dislikedMovieIndex = await findIndexByAttr(data.dislikeMovie.dislikedMovies, '_id', dislikedMovie._id);
+            const updatedDislikedMovie = data.dislikeMovie.dislikedMovies[dislikedMovieIndex];
+
+            // update idb
+            idbPromise('likedMovies', 'delete', updatedDislikedMovie);
+            idbPromise('dislikedMovies', 'put', updatedDislikedMovie);
+
+            // skip to the next movie
+            handleNextMovie();
+        } else {
+            console.error("Couldn't dislike the movie!");
+        }
+    })
+    .catch(err => console.error(err));
+};
