@@ -91,3 +91,58 @@ const Homepage = () => {
             }
         }
     }, [setMovieIndex, dislikedMovies, likedMovies, movies, movieIndex]);
+
+    // hook for getting the movies
+    useEffect(() => {
+        if (loading && !movies.length) {
+            // if we're online, ping the API to get our movie preferences
+            try {
+                console.log("Pinging TMDB API to get trending movies");
+                getTrendingMovies('week').then(res => {
+                    if (res.ok) {
+                        res.json().then(async ({ results }) => {
+                            // clean the data to match our MovieSchema
+                            const cleanedMovieData = await cleanMovieData(results);
+                            cleanedMovieData.forEach(async movie => {
+                                // add the movie to the db
+                                const result = await addMovie({ variables: { input: movie } })
+
+                                if (addMovieError) {
+                                    throw new Error("Couldn't add movie");
+                                }
+
+                                const { data: newMovieData } = await result;
+                                const { addMovie : newMovie } = await newMovieData;
+
+                                // add the movie to the global store
+                                dispatch({
+                                    type: ADD_TO_MOVIES,
+                                    movie: newMovie
+                                })
+
+                                // add to idb
+                                idbPromise('movies', 'put', newMovie);
+                            })
+                        })
+                    }
+                    else {
+                        throw new Error ("Couldn't load trending movies");
+                    }
+                })
+            }
+            // if we can't load from TMDB, try getting them from idb
+            catch {
+                console.log("Couldn't get data from TMDB API. Using IDB to display movies.");
+
+                idbPromise('movies', 'get').then(movies => {
+                    if (movies.length) {
+                        console.log('Using IDB to get trending movies');
+                        dispatch({
+                            type: UPDATE_MOVIES,
+                            movies
+                        })
+                    }
+                })
+            }
+        }
+    }, [movies, data, dispatch, loading, addMovie, addMovieError])
