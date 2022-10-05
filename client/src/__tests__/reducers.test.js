@@ -35,3 +35,52 @@ const initialState = {
         }
     ]
 };
+
+test('ADD_TO_MOVIES', () => {
+    let newState = reducer(initialState, {
+        type: ADD_TO_MOVIES,
+        movie: {
+            "externalMovieId": 4
+        }
+    });
+
+    // check movies
+    expect(newState.movies.length).toBe(2);
+    expect(newState.movies[1].externalMovieId).toBe(4);
+    expect(initialState.movies.length).toBe(1);
+});
+
+test('UPDATE_MOVIES', () => {
+    let newState = reducer(initialState, {
+        type: UPDATE_MOVIES,
+        movies: [{
+            "externalMovieId": 5
+        }]
+    });
+
+    // check movies
+    expect(newState.movies.length).toBe(1);
+    expect(newState.movies[0].externalMovieId).toBe(5);
+    expect(initialState.movies.length).toBe(1);
+});
+
+test('UPDATE_CURRENT_USER', () => {
+    let newState = reducer(initialState, {
+        type: UPDATE_CURRENT_USER,
+        userId: 123
+    });
+
+    expect(newState.currentUser).toBe(123);
+    expect(initialState.currentUser).toBe(111);
+});
+
+test('UPDATE_MOVIE_PREFERENCES', () => {
+    let newState = reducer(initialState, {
+        type: UPDATE_MOVIE_PREFERENCES,
+        likedMovies: [{
+            "externalMovieId": 6
+        }],
+        dislikedMovies: [{
+            "externalMovieId": 7
+        }]
+    });
