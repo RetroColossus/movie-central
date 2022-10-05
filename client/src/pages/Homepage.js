@@ -18,3 +18,15 @@ import { cleanMovieData } from '../utils/movieData';
 // Other Utils
 import Auth from '../utils/auth';
 import { findIndexByAttr } from '../utils/helpers'
+
+const Homepage = () => {
+    const [state, dispatch] = useMovieCentralContext();
+    const { movies, likedMovies, dislikedMovies } = state
+    const [movieIndex, setMovieIndex] = useState('');
+    const [moviesToDisplay, setMoviesToDisplay] = useState(true);
+    const [lastSwipe, setLastSwipe] = useState('');
+    // GraphQL
+    const [addMovie, { addMovieError }] = useMutation(ADD_MOVIE);
+    const [dislikeMovie] = useMutation(DISLIKE_MOVIE);
+    const [likeMovie] = useMutation(LIKE_MOVIE);
+    const { loading, data } = useQuery(GET_USER);
