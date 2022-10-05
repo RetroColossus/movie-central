@@ -67,3 +67,27 @@ const Homepage = () => {
         }
     }, [data, loading, likedMovies, dislikedMovies, dispatch])
     
+    // hook for displaying a movie
+    useEffect(() => {
+        if (movies.length && movieIndex === '') { // show the next movie
+            console.log('There are movies, but no movieIndex. Setting movieIndex')
+            // if they're logged in, set it to the first movie they haven't actioned
+            if (Auth.loggedIn()){
+                for (let i=0; i < movies.length; i++) {
+                    const isLiked = likedMovies.some(likedMovie => likedMovie._id === movies[i]._id);
+                    const isDisliked = dislikedMovies.some(dislikedMovie => dislikedMovie._id === movies[i]._id);
+
+                    if (!isLiked && !isDisliked && movies[i].trailer) {
+                        setMovieIndex(i);
+                        setMoviesToDisplay(true);
+                        return;
+                    }
+                }
+                setMoviesToDisplay(false);
+            }
+            // if they're logged in, set it to the first movie in the deck
+            else {
+                setMovieIndex(0);
+            }
+        }
+    }, [setMovieIndex, dislikedMovies, likedMovies, movies, movieIndex]);
