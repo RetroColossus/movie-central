@@ -11,7 +11,8 @@ const AppNavbar = () => {
 
     return (
         <>
-            <Navbar collapseOnSelect expand="lg" bg="black" variant="dark" className="text-left" >
+        
+            <Navbar collapseOnSelect expand="lg" bg="black" variant="dark"  >
                 <Navbar.Brand as={Link} to='/' >
                     Movie Central - Your Movie App
                 </Navbar.Brand>
